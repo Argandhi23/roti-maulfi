@@ -4,22 +4,20 @@ import { useEffect, useState, useCallback } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Trash2, ShoppingBag, RefreshCw, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 
-type Expense = {
-  id: number
-  created_at: string
-  item_name: string
-  amount: number
-  date: string
+// 1. Definisikan Props agar TypeScript kenal 'refreshTrigger'
+interface Props {
+  refreshTrigger: number;
 }
 
-export default function ExpenseList() {
-  const [expenses, setExpenses] = useState<Expense[]>([])
+// 2. Terima props di sini
+export default function ExpenseList({ refreshTrigger }: Props) {
+  const [expenses, setExpenses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
   // Pagination State
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const itemsPerPage = 7 // Tampilkan 7 item per halaman
+  const itemsPerPage = 7 
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,23 +27,22 @@ export default function ExpenseList() {
   const fetchExpenses = useCallback(async () => {
     setLoading(true)
     
-    // Hitung range untuk pagination database
     const from = (page - 1) * itemsPerPage
     const to = from + itemsPerPage - 1
 
     const { data, error, count } = await supabase
       .from('expenses')
-      .select('*', { count: 'exact' }) // Minta total jumlah data
+      .select('*', { count: 'exact' })
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
-      .range(from, to) // Ambil hanya sebagian
+      .range(from, to)
 
     if (data) {
       setExpenses(data)
       if (count !== null) setTotalPages(Math.ceil(count / itemsPerPage))
     }
     setLoading(false)
-  }, [page, supabase]) // Re-fetch jika page berubah
+  }, [page, supabase]) 
 
   const handleDelete = async (id: number) => {
     if (!confirm("Yakin ingin menghapus data belanja ini?")) return;
@@ -53,12 +50,14 @@ export default function ExpenseList() {
     const { error } = await supabase.from('expenses').delete().eq('id', id)
 
     if (!error) {
-      fetchExpenses() // Refresh list tanpa reload page
+      fetchExpenses() 
     } else {
       alert("Gagal menghapus data.")
     }
   }
 
+  // 3. Tambahkan 'refreshTrigger' ke useEffect
+  // Jadi setiap kali input berhasil disimpan, list ini otomatis refresh
   useEffect(() => {
     fetchExpenses()
     
@@ -68,7 +67,7 @@ export default function ExpenseList() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [fetchExpenses, supabase])
+  }, [fetchExpenses, supabase, refreshTrigger]) // <--- PENTING: Tambahkan refreshTrigger di sini
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col h-full">
